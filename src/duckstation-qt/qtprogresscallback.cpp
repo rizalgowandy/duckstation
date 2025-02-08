@@ -1,62 +1,67 @@
+// SPDX-FileCopyrightText: 2019-2024 Connor McLaughlin <stenzek@gmail.com>
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #include "qtprogresscallback.h"
+#include "qtutils.h"
+
+#include "common/assert.h"
+
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDebug>
 #include <QtWidgets/QMessageBox>
 #include <array>
 
-QtProgressCallback::QtProgressCallback(QWidget* parent_widget, float show_delay)
+QtModalProgressCallback::QtModalProgressCallback(QWidget* parent_widget, float show_delay)
   : QObject(parent_widget), m_dialog(QString(), QString(), 0, 1, parent_widget), m_show_delay(show_delay)
 {
   m_dialog.setWindowTitle(tr("DuckStation"));
-  m_dialog.setMinimumSize(QSize(500, 0));
+  m_dialog.setMinimumSize(MINIMUM_WIDTH, MINIMUM_HEIGHT_WITHOUT_CANCEL);
   m_dialog.setModal(parent_widget != nullptr);
   m_dialog.setAutoClose(false);
   m_dialog.setAutoReset(false);
+  m_dialog.setWindowFlag(Qt::CustomizeWindowHint, true);
+  m_dialog.setWindowFlag(Qt::WindowCloseButtonHint, false);
+  connect(&m_dialog, &QProgressDialog::canceled, this, &QtModalProgressCallback::dialogCancelled);
   checkForDelayedShow();
 }
 
-QtProgressCallback::~QtProgressCallback() = default;
+QtModalProgressCallback::~QtModalProgressCallback() = default;
 
-bool QtProgressCallback::IsCancelled() const
-{
-  return m_dialog.wasCanceled();
-}
-
-void QtProgressCallback::SetCancellable(bool cancellable)
+void QtModalProgressCallback::SetCancellable(bool cancellable)
 {
   if (m_cancellable == cancellable)
     return;
 
-  BaseProgressCallback::SetCancellable(cancellable);
+  ProgressCallback::SetCancellable(cancellable);
+  m_dialog.setWindowFlag(Qt::WindowCloseButtonHint, cancellable);
+  m_dialog.setMinimumHeight(cancellable ? MINIMUM_HEIGHT_WITH_CANCEL : MINIMUM_HEIGHT_WITHOUT_CANCEL);
   m_dialog.setCancelButtonText(cancellable ? tr("Cancel") : QString());
 }
 
-void QtProgressCallback::SetTitle(const char* title)
+void QtModalProgressCallback::SetTitle(const std::string_view title)
 {
-  m_dialog.setWindowTitle(QString::fromUtf8(title));
+  m_dialog.setWindowTitle(QtUtils::StringViewToQString(title));
 }
 
-void QtProgressCallback::SetStatusText(const char* text)
+void QtModalProgressCallback::SetStatusText(const std::string_view text)
 {
-  BaseProgressCallback::SetStatusText(text);
+  ProgressCallback::SetStatusText(text);
   checkForDelayedShow();
-
-  if (m_dialog.isVisible())
-    m_dialog.setLabelText(QString::fromUtf8(text));
+  m_dialog.setLabelText(QtUtils::StringViewToQString(text));
 }
 
-void QtProgressCallback::SetProgressRange(u32 range)
+void QtModalProgressCallback::SetProgressRange(u32 range)
 {
-  BaseProgressCallback::SetProgressRange(range);
+  ProgressCallback::SetProgressRange(range);
   checkForDelayedShow();
 
   if (m_dialog.isVisible())
     m_dialog.setRange(0, m_progress_range);
 }
 
-void QtProgressCallback::SetProgressValue(u32 value)
+void QtModalProgressCallback::SetProgressValue(u32 value)
 {
-  BaseProgressCallback::SetProgressValue(value);
+  ProgressCallback::SetProgressValue(value);
   checkForDelayedShow();
 
   if (m_dialog.isVisible() && static_cast<u32>(m_dialog.value()) != m_progress_range)
@@ -65,51 +70,127 @@ void QtProgressCallback::SetProgressValue(u32 value)
   QCoreApplication::processEvents();
 }
 
-void QtProgressCallback::DisplayError(const char* message)
+void QtModalProgressCallback::ModalError(const std::string_view message)
 {
-  qWarning() << message;
+  QMessageBox::critical(&m_dialog, tr("Error"), QtUtils::StringViewToQString(message));
 }
 
-void QtProgressCallback::DisplayWarning(const char* message)
+bool QtModalProgressCallback::ModalConfirmation(const std::string_view message)
 {
-  qWarning() << message;
-}
-
-void QtProgressCallback::DisplayInformation(const char* message)
-{
-  qWarning() << message;
-}
-
-void QtProgressCallback::DisplayDebugMessage(const char* message)
-{
-  qWarning() << message;
-}
-
-void QtProgressCallback::ModalError(const char* message)
-{
-  QMessageBox::critical(&m_dialog, tr("Error"), QString::fromUtf8(message));
-}
-
-bool QtProgressCallback::ModalConfirmation(const char* message)
-{
-  return (QMessageBox::question(&m_dialog, tr("Question"), QString::fromUtf8(message), QMessageBox::Yes,
+  return (QMessageBox::question(&m_dialog, tr("Question"), QtUtils::StringViewToQString(message), QMessageBox::Yes,
                                 QMessageBox::No) == QMessageBox::Yes);
 }
 
-void QtProgressCallback::ModalInformation(const char* message)
+void QtModalProgressCallback::ModalInformation(const std::string_view message)
 {
-  QMessageBox::information(&m_dialog, tr("Information"), QString::fromUtf8(message));
+  QMessageBox::information(&m_dialog, tr("Information"), QtUtils::StringViewToQString(message));
 }
 
-void QtProgressCallback::checkForDelayedShow()
+void QtModalProgressCallback::dialogCancelled()
+{
+  m_cancelled = true;
+}
+
+void QtModalProgressCallback::checkForDelayedShow()
 {
   if (m_dialog.isVisible())
     return;
 
   if (m_show_timer.GetTimeSeconds() >= m_show_delay)
-  {
-    m_dialog.setRange(0, m_progress_range);
-    m_dialog.setValue(m_progress_value);
-    m_dialog.show();
-  }
+    MakeVisible();
+}
+void QtModalProgressCallback::MakeVisible()
+{
+  m_dialog.setRange(0, m_progress_range);
+  m_dialog.setValue(m_progress_value);
+  m_dialog.show();
+}
+
+// NOTE: We deliberately don't set the thread parent, because otherwise we can't move it.
+QtAsyncProgressThread::QtAsyncProgressThread(QWidget* parent) : QThread()
+{
+}
+
+QtAsyncProgressThread::~QtAsyncProgressThread() = default;
+
+bool QtAsyncProgressThread::IsCancelled() const
+{
+  return isInterruptionRequested();
+}
+
+void QtAsyncProgressThread::SetCancellable(bool cancellable)
+{
+  if (m_cancellable == cancellable)
+    return;
+
+  ProgressCallback::SetCancellable(cancellable);
+}
+
+void QtAsyncProgressThread::SetTitle(const std::string_view title)
+{
+  emit titleUpdated(QtUtils::StringViewToQString(title));
+}
+
+void QtAsyncProgressThread::SetStatusText(const std::string_view text)
+{
+  ProgressCallback::SetStatusText(text);
+  emit statusUpdated(QtUtils::StringViewToQString(text));
+}
+
+void QtAsyncProgressThread::SetProgressRange(u32 range)
+{
+  ProgressCallback::SetProgressRange(range);
+  emit progressUpdated(static_cast<int>(m_progress_value), static_cast<int>(m_progress_range));
+}
+
+void QtAsyncProgressThread::SetProgressValue(u32 value)
+{
+  ProgressCallback::SetProgressValue(value);
+  emit progressUpdated(static_cast<int>(m_progress_value), static_cast<int>(m_progress_range));
+}
+
+void QtAsyncProgressThread::ModalError(const std::string_view message)
+{
+  QMessageBox::critical(parentWidget(), tr("Error"), QtUtils::StringViewToQString(message));
+}
+
+bool QtAsyncProgressThread::ModalConfirmation(const std::string_view message)
+{
+  return (QMessageBox::question(parentWidget(), tr("Question"), QtUtils::StringViewToQString(message), QMessageBox::Yes,
+                                QMessageBox::No) == QMessageBox::Yes);
+}
+
+void QtAsyncProgressThread::ModalInformation(const std::string_view message)
+{
+  QMessageBox::information(parentWidget(), tr("Information"), QtUtils::StringViewToQString(message));
+}
+
+void QtAsyncProgressThread::start()
+{
+  Assert(!isRunning());
+
+  QThread::start();
+  moveToThread(this);
+  m_starting_thread = QThread::currentThread();
+  m_start_semaphore.release();
+}
+
+void QtAsyncProgressThread::join()
+{
+  if (isRunning())
+    QThread::wait();
+}
+
+void QtAsyncProgressThread::run()
+{
+  m_start_semaphore.acquire();
+  emit threadStarting();
+  runAsync();
+  emit threadFinished();
+  moveToThread(m_starting_thread);
+}
+
+QWidget* QtAsyncProgressThread::parentWidget() const
+{
+  return qobject_cast<QWidget*>(parent());
 }

@@ -1,29 +1,45 @@
-#pragma once
+// SPDX-FileCopyrightText: 2019-2024 Connor McLaughlin <stenzek@gmail.com>
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0
 
-#include <QtWidgets/QWidget>
+#pragma once
 
 #include "ui_audiosettingswidget.h"
 
-class QtHostInterface;
-class SettingsDialog;
+#include "common/types.h"
+
+#include <QtWidgets/QWidget>
+
+enum class AudioBackend : u8;
+
+class SettingsWindow;
 
 class AudioSettingsWidget : public QWidget
 {
   Q_OBJECT
 
 public:
-  explicit AudioSettingsWidget(QtHostInterface* host_interface, QWidget* parent, SettingsDialog* dialog);
+  AudioSettingsWidget(SettingsWindow* dialog, QWidget* parent);
   ~AudioSettingsWidget();
 
 private Q_SLOTS:
-  void updateBufferingLabel();
+  void onStretchModeChanged();
+
+  void updateDriverNames();
+  void updateDeviceNames();
+  void updateLatencyLabel();
   void updateVolumeLabel();
+  void onMinimalOutputLatencyChecked(Qt::CheckState state);
   void onOutputVolumeChanged(int new_value);
   void onFastForwardVolumeChanged(int new_value);
   void onOutputMutedChanged(int new_state);
 
-private:
-  Ui::AudioSettingsWidget m_ui;
+  void onStretchSettingsClicked();
 
-  QtHostInterface* m_host_interface;
+private:
+  AudioBackend getEffectiveBackend() const;
+  void resetVolume(bool fast_forward);
+
+  Ui::AudioSettingsWidget m_ui;
+  SettingsWindow* m_dialog;
+  u32 m_output_device_latency = 0;
 };

@@ -1,11 +1,20 @@
+// SPDX-FileCopyrightText: 2019-2024 Connor McLaughlin <stenzek@gmail.com>
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #include "debuggermodels.h"
+
 #include "core/cpu_core.h"
 #include "core/cpu_core_private.h"
 #include "core/cpu_disasm.h"
+
+#include "common/small_string.h"
+
 #include <QtGui/QColor>
 #include <QtGui/QIcon>
 #include <QtGui/QPalette>
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QMessageBox>
+#include <QtWidgets/QPushButton>
 
 static constexpr int NUM_COLUMNS = 5;
 static constexpr int STACK_RANGE = 128;
@@ -18,7 +27,9 @@ DebuggerCodeModel::DebuggerCodeModel(QObject* parent /*= nullptr*/) : QAbstractT
   m_breakpoint_pixmap = QIcon(QStringLiteral(":/icons/media-record.png")).pixmap(QSize(12, 12));
 }
 
-DebuggerCodeModel::~DebuggerCodeModel() {}
+DebuggerCodeModel::~DebuggerCodeModel()
+{
+}
 
 int DebuggerCodeModel::rowCount(const QModelIndex& parent /*= QModelIndex()*/) const
 {
@@ -89,7 +100,7 @@ QVariant DebuggerCodeModel::data(const QModelIndex& index, int role /*= Qt::Disp
 
         SmallString str;
         CPU::DisassembleInstruction(&str, address, instruction_bits);
-        return QString::fromUtf8(str.GetCharArray(), static_cast<int>(str.GetLength()));
+        return QString::fromUtf8(str.c_str(), static_cast<int>(str.length()));
       }
 
       case 4:
@@ -103,8 +114,8 @@ QVariant DebuggerCodeModel::data(const QModelIndex& index, int role /*= Qt::Disp
           return tr("<invalid>");
 
         TinyString str;
-        CPU::DisassembleInstructionComment(&str, address, instruction_bits, &CPU::g_state.regs);
-        return QString::fromUtf8(str.GetCharArray(), static_cast<int>(str.GetLength()));
+        CPU::DisassembleInstructionComment(&str, address, instruction_bits);
+        return QString::fromUtf8(str.c_str(), static_cast<int>(str.length()));
       }
 
       default:
@@ -284,13 +295,17 @@ void DebuggerCodeModel::setBreakpointState(VirtualMemoryAddress address, bool en
   }
 }
 
-DebuggerRegistersModel::DebuggerRegistersModel(QObject* parent /*= nullptr*/) : QAbstractListModel(parent) {}
+DebuggerRegistersModel::DebuggerRegistersModel(QObject* parent /*= nullptr*/) : QAbstractListModel(parent)
+{
+}
 
-DebuggerRegistersModel::~DebuggerRegistersModel() {}
+DebuggerRegistersModel::~DebuggerRegistersModel()
+{
+}
 
 int DebuggerRegistersModel::rowCount(const QModelIndex& parent /*= QModelIndex()*/) const
 {
-  return static_cast<int>(CPU::Reg::count);
+  return static_cast<int>(CPU::NUM_DEBUGGER_REGISTER_LIST_ENTRIES);
 }
 
 int DebuggerRegistersModel::columnCount(const QModelIndex& parent /*= QModelIndex()*/) const
@@ -301,7 +316,7 @@ int DebuggerRegistersModel::columnCount(const QModelIndex& parent /*= QModelInde
 QVariant DebuggerRegistersModel::data(const QModelIndex& index, int role /*= Qt::DisplayRole*/) const
 {
   u32 reg_index = static_cast<u32>(index.row());
-  if (reg_index >= static_cast<u32>(CPU::Reg::count))
+  if (reg_index >= CPU::NUM_DEBUGGER_REGISTER_LIST_ENTRIES)
     return QVariant();
 
   if (index.column() < 0 || index.column() > 1)
@@ -312,7 +327,7 @@ QVariant DebuggerRegistersModel::data(const QModelIndex& index, int role /*= Qt:
     case 0: // address
     {
       if (role == Qt::DisplayRole)
-        return QString::fromUtf8(CPU::GetRegName(static_cast<CPU::Reg>(reg_index)));
+        return QString::fromUtf8(CPU::g_debugger_register_list[reg_index].name);
     }
     break;
 
@@ -320,11 +335,11 @@ QVariant DebuggerRegistersModel::data(const QModelIndex& index, int role /*= Qt:
     {
       if (role == Qt::DisplayRole)
       {
-        return QString::asprintf("0x%08X", CPU::g_state.regs.r[reg_index]);
+        return QString::asprintf("0x%08X", m_reg_values[reg_index]);
       }
       else if (role == Qt::ForegroundRole)
       {
-        if (CPU::g_state.regs.r[reg_index] != m_old_reg_values[reg_index])
+        if (m_reg_values[reg_index] != m_old_reg_values[reg_index])
           return QColor(255, 50, 50);
       }
     }
@@ -357,21 +372,28 @@ QVariant DebuggerRegistersModel::headerData(int section, Qt::Orientation orienta
   }
 }
 
-void DebuggerRegistersModel::invalidateView()
+void DebuggerRegistersModel::updateValues()
 {
   beginResetModel();
+
+  for (u32 i = 0; i < CPU::NUM_DEBUGGER_REGISTER_LIST_ENTRIES; i++)
+    m_reg_values[i] = *CPU::g_debugger_register_list[i].value_ptr;
+
   endResetModel();
 }
 
 void DebuggerRegistersModel::saveCurrentValues()
 {
-  for (u32 i = 0; i < static_cast<u32>(CPU::Reg::count); i++)
-    m_old_reg_values[i] = CPU::g_state.regs.r[i];
+  m_old_reg_values = m_reg_values;
 }
 
-DebuggerStackModel::DebuggerStackModel(QObject* parent /*= nullptr*/) : QAbstractListModel(parent) {}
+DebuggerStackModel::DebuggerStackModel(QObject* parent /*= nullptr*/) : QAbstractListModel(parent)
+{
+}
 
-DebuggerStackModel::~DebuggerStackModel() {}
+DebuggerStackModel::~DebuggerStackModel()
+{
+}
 
 int DebuggerStackModel::rowCount(const QModelIndex& parent /*= QModelIndex()*/) const
 {
@@ -428,4 +450,45 @@ void DebuggerStackModel::invalidateView()
 {
   beginResetModel();
   endResetModel();
+}
+
+DebuggerAddBreakpointDialog::DebuggerAddBreakpointDialog(QWidget* parent /*= nullptr*/) : QDialog(parent)
+{
+  m_ui.setupUi(this);
+  connect(m_ui.buttonBox->button(QDialogButtonBox::Ok), &QAbstractButton::clicked, this,
+          &DebuggerAddBreakpointDialog::okClicked);
+}
+
+DebuggerAddBreakpointDialog::~DebuggerAddBreakpointDialog() = default;
+
+void DebuggerAddBreakpointDialog::okClicked()
+{
+  const QString address_str = m_ui.address->text();
+  m_address = 0;
+  bool ok = false;
+
+  if (!address_str.isEmpty())
+  {
+    if (address_str.startsWith("0x"))
+      m_address = address_str.mid(2).toUInt(&ok, 16);
+    else
+      m_address = address_str.toUInt(&ok, 16);
+
+    if (!ok)
+    {
+      QMessageBox::critical(
+        this, qApp->translate("DebuggerWindow", "Error"),
+        qApp->translate("DebuggerWindow", "Invalid address. It should be in hex (0x12345678 or 12345678)"));
+      return;
+    }
+
+    if (m_ui.read->isChecked())
+      m_type = CPU::BreakpointType::Read;
+    else if (m_ui.write->isChecked())
+      m_type = CPU::BreakpointType::Write;
+    else
+      m_type = CPU::BreakpointType::Execute;
+
+    accept();
+  }
 }

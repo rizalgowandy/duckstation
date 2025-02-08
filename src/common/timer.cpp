@@ -1,40 +1,63 @@
+// SPDX-FileCopyrightText: 2019-2024 Connor McLaughlin <stenzek@gmail.com>
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #include "timer.h"
+#include "types.h"
 #include <cstdio>
 #include <cstdlib>
 
 #ifdef _WIN32
 #include "windows_headers.h"
 #else
+#include <errno.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 #endif
-
-namespace Common {
 
 #ifdef _WIN32
 
 static double s_counter_frequency;
 static bool s_counter_initialized = false;
 
-// This gets leaked... oh well.
-static thread_local HANDLE s_sleep_timer;
-static thread_local bool s_sleep_timer_created = false;
+namespace {
+
+struct SleepTimerHandle
+{
+  SleepTimerHandle() = default;
+  ~SleepTimerHandle()
+  {
+    if (handle != NULL)
+      CloseHandle(handle);
+  }
+
+  HANDLE handle = NULL;
+  bool created = false;
+};
+
+}; // namespace
+
+static thread_local SleepTimerHandle s_sleep_timer;
 
 static HANDLE GetSleepTimer()
 {
-  if (s_sleep_timer_created)
-    return s_sleep_timer;
+  if (s_sleep_timer.created)
+    return s_sleep_timer.handle;
 
-  s_sleep_timer_created = true;
-  s_sleep_timer = CreateWaitableTimer(nullptr, TRUE, nullptr);
-  if (!s_sleep_timer)
-    std::fprintf(stderr, "CreateWaitableTimer() failed, falling back to Sleep()\n");
+  s_sleep_timer.created = true;
+  s_sleep_timer.handle =
+    CreateWaitableTimerEx(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+  if (!s_sleep_timer.handle)
+  {
+    s_sleep_timer.handle = CreateWaitableTimer(nullptr, TRUE, nullptr);
+    if (!s_sleep_timer.handle)
+      std::fprintf(stderr, "CreateWaitableTimer() failed, falling back to Sleep()\n");
+  }
 
-  return s_sleep_timer;
+  return s_sleep_timer.handle;
 }
 
-Timer::Value Timer::GetValue()
+double Timer::GetFrequency()
 {
   // even if this races, it should still result in the same value..
   if (!s_counter_initialized)
@@ -45,6 +68,11 @@ Timer::Value Timer::GetValue()
     s_counter_initialized = true;
   }
 
+  return s_counter_frequency;
+}
+
+Timer::Value Timer::GetCurrentValue()
+{
   Timer::Value ReturnValue;
   QueryPerformanceCounter(reinterpret_cast<LARGE_INTEGER*>(&ReturnValue));
   return ReturnValue;
@@ -52,58 +80,66 @@ Timer::Value Timer::GetValue()
 
 double Timer::ConvertValueToNanoseconds(Timer::Value value)
 {
-  return (static_cast<double>(value) / s_counter_frequency);
+  return (static_cast<double>(value) / GetFrequency());
 }
 
 double Timer::ConvertValueToMilliseconds(Timer::Value value)
 {
-  return ((static_cast<double>(value) / s_counter_frequency) / 1000000.0);
+  return ((static_cast<double>(value) / GetFrequency()) / 1000000.0);
 }
 
 double Timer::ConvertValueToSeconds(Timer::Value value)
 {
-  return ((static_cast<double>(value) / s_counter_frequency) / 1000000000.0);
+  return ((static_cast<double>(value) / GetFrequency()) / 1000000000.0);
 }
 
 Timer::Value Timer::ConvertSecondsToValue(double s)
 {
-  return static_cast<Value>((s * 1000000000.0) * s_counter_frequency);
+  return static_cast<Value>((s * 1000000000.0) * GetFrequency());
 }
 
 Timer::Value Timer::ConvertMillisecondsToValue(double ms)
 {
-  return static_cast<Value>((ms * 1000000.0) * s_counter_frequency);
+  return static_cast<Value>((ms * 1000000.0) * GetFrequency());
 }
 
 Timer::Value Timer::ConvertNanosecondsToValue(double ns)
 {
-  return static_cast<Value>(ns * s_counter_frequency);
+  return static_cast<Value>(ns * GetFrequency());
 }
 
 void Timer::SleepUntil(Value value, bool exact)
 {
   if (exact)
   {
-    while (GetValue() < value)
-      SleepUntil(value, false);
+    // Even with the high-precision timer, it's not precise enough to wake us up *exactly* when we want
+    // to. Dropping off the last 0.5ms and spinning for it seems enough on my system (Win11 22H2).
+    const Value wake_at = value - ConvertMillisecondsToValue(0.5);
+    Value current = GetCurrentValue();
+    if (wake_at > current)
+      SleepUntil(wake_at, false);
+
+    // And spin off whatever time is left.
+    do
+    {
+      current = GetCurrentValue();
+    } while (current < value);
   }
   else
   {
-    const std::int64_t diff = static_cast<std::int64_t>(value - GetValue());
+    const s64 diff = static_cast<s64>(value - GetCurrentValue());
     if (diff <= 0)
       return;
 
-#ifndef _UWP
     HANDLE timer = GetSleepTimer();
     if (timer)
     {
-      FILETIME ft;
-      GetSystemTimeAsFileTime(&ft);
+      const u64 one_hundred_nanos_diff = static_cast<u64>(ConvertValueToNanoseconds(diff) / 100.0);
+      if (one_hundred_nanos_diff == 0)
+        return;
 
       LARGE_INTEGER fti;
-      fti.LowPart = ft.dwLowDateTime;
-      fti.HighPart = ft.dwHighDateTime;
-      fti.QuadPart += diff;
+      fti.QuadPart = -static_cast<s64>(one_hundred_nanos_diff);
 
       if (SetWaitableTimer(timer, &fti, 0, nullptr, nullptr, FALSE))
       {
@@ -111,16 +147,20 @@ void Timer::SleepUntil(Value value, bool exact)
         return;
       }
     }
-#endif
 
     // falling back to sleep... bad.
-    Sleep(static_cast<DWORD>(static_cast<std::uint64_t>(diff) / 1000000));
+    Sleep(static_cast<DWORD>(ConvertValueToMilliseconds(diff)));
   }
 }
 
 #else
 
-Timer::Value Timer::GetValue()
+double Timer::GetFrequency()
+{
+  return 1.0;
+}
+
+Timer::Value Timer::GetCurrentValue()
 {
   struct timespec tv;
   clock_gettime(CLOCK_MONOTONIC, &tv);
@@ -161,27 +201,52 @@ void Timer::SleepUntil(Value value, bool exact)
 {
   if (exact)
   {
-    while (GetValue() < value)
-      SleepUntil(value, false);
+    static constexpr Value min_sleep_time = static_cast<Value>(0.5 * 1000000);
+    const Value wake_at = value - min_sleep_time;
+    Value current = GetCurrentValue();
+    if (wake_at > current)
+      SleepUntil(wake_at, false);
+
+    // And spin off whatever time is left.
+    do
+    {
+      current = GetCurrentValue();
+    } while (current < value);
   }
   else
   {
     // Apple doesn't have TIMER_ABSTIME, so fall back to nanosleep in such a case.
 #ifdef __APPLE__
-    const Value current_time = GetValue();
-    if (value <= current_time)
-      return;
+    for (;;)
+    {
+      const Value current_time = GetCurrentValue();
+      if (value <= current_time)
+        return;
 
-    const Value diff = value - current_time;
-    struct timespec ts;
-    ts.tv_sec = diff / UINT64_C(1000000000);
-    ts.tv_nsec = diff % UINT64_C(1000000000);
-    nanosleep(&ts, nullptr);
+      const Value diff = value - current_time;
+      struct timespec ts;
+      ts.tv_sec = diff / UINT64_C(1000000000);
+      ts.tv_nsec = diff % UINT64_C(1000000000);
+
+      // nanosleep() can return EINTR if interrupted by a signal.
+      if (nanosleep(&ts, nullptr) == EINTR)
+        continue;
+      else
+        break;
+    }
 #else
     struct timespec ts;
     ts.tv_sec = value / UINT64_C(1000000000);
     ts.tv_nsec = value % UINT64_C(1000000000);
-    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr);
+
+    for (;;)
+    {
+      // clock_nanosleep() can return EINTR if interrupted by a signal.
+      if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr) == EINTR)
+        continue;
+      else
+        break;
+    }
 #endif
   }
 }
@@ -195,58 +260,115 @@ Timer::Timer()
 
 void Timer::Reset()
 {
-  m_tvStartValue = GetValue();
+  m_tvStartValue = GetCurrentValue();
 }
 
 double Timer::GetTimeSeconds() const
 {
-  return ConvertValueToSeconds(GetValue() - m_tvStartValue);
+  return ConvertValueToSeconds(GetCurrentValue() - m_tvStartValue);
 }
 
 double Timer::GetTimeMilliseconds() const
 {
-  return ConvertValueToMilliseconds(GetValue() - m_tvStartValue);
+  return ConvertValueToMilliseconds(GetCurrentValue() - m_tvStartValue);
 }
 
 double Timer::GetTimeNanoseconds() const
 {
-  return ConvertValueToNanoseconds(GetValue() - m_tvStartValue);
+  return ConvertValueToNanoseconds(GetCurrentValue() - m_tvStartValue);
+}
+
+double Timer::GetTimeSecondsAndReset()
+{
+  const Value value = GetCurrentValue();
+  const double ret = ConvertValueToSeconds(value - m_tvStartValue);
+  m_tvStartValue = value;
+  return ret;
+}
+
+double Timer::GetTimeMillisecondsAndReset()
+{
+  const Value value = GetCurrentValue();
+  const double ret = ConvertValueToMilliseconds(value - m_tvStartValue);
+  m_tvStartValue = value;
+  return ret;
+}
+
+double Timer::GetTimeNanosecondsAndReset()
+{
+  const Value value = GetCurrentValue();
+  const double ret = ConvertValueToNanoseconds(value - m_tvStartValue);
+  m_tvStartValue = value;
+  return ret;
+}
+
+bool Timer::ResetIfSecondsPassed(double s)
+{
+  const Value value = GetCurrentValue();
+  const double ret = ConvertValueToSeconds(value - m_tvStartValue);
+  if (ret < s)
+    return false;
+
+  m_tvStartValue = value;
+  return true;
+}
+
+bool Timer::ResetIfMillisecondsPassed(double s)
+{
+  const Value value = GetCurrentValue();
+  const double ret = ConvertValueToMilliseconds(value - m_tvStartValue);
+  if (ret < s)
+    return false;
+
+  m_tvStartValue = value;
+  return true;
+}
+
+bool Timer::ResetIfNanosecondsPassed(double s)
+{
+  const Value value = GetCurrentValue();
+  const double ret = ConvertValueToNanoseconds(value - m_tvStartValue);
+  if (ret < s)
+    return false;
+
+  m_tvStartValue = value;
+  return true;
 }
 
 void Timer::BusyWait(std::uint64_t ns)
 {
-  const Value start = GetValue();
+  const Value start = GetCurrentValue();
   const Value end = start + ConvertNanosecondsToValue(static_cast<double>(ns));
   if (end < start)
   {
     // overflow, unlikely
-    while (GetValue() > end)
+    while (GetCurrentValue() > end)
       ;
   }
 
-  while (GetValue() < end)
+  while (GetCurrentValue() < end)
     ;
 }
 
 void Timer::HybridSleep(std::uint64_t ns, std::uint64_t min_sleep_time)
 {
-  const std::uint64_t start = GetValue();
+  const std::uint64_t start = GetCurrentValue();
   const std::uint64_t end = start + ConvertNanosecondsToValue(static_cast<double>(ns));
   if (end < start)
   {
     // overflow, unlikely
-    while (GetValue() > end)
+    while (GetCurrentValue() > end)
       ;
   }
 
-  std::uint64_t current = GetValue();
+  std::uint64_t current = GetCurrentValue();
   while (current < end)
   {
     const std::uint64_t remaining = end - current;
     if (remaining >= min_sleep_time)
       NanoSleep(min_sleep_time);
 
-    current = GetValue();
+    current = GetCurrentValue();
   }
 }
 
@@ -261,7 +383,7 @@ void Timer::NanoSleep(std::uint64_t ns)
     if (SetWaitableTimer(timer, &due_time, 0, nullptr, nullptr, FALSE))
       WaitForSingleObject(timer, INFINITE);
     else
-      std::fprintf(stderr, "SetWaitableTimer() failed: %08X\n", GetLastError());
+      std::fprintf(stderr, "SetWaitableTimer() failed: %08X\n", static_cast<unsigned>(GetLastError()));
   }
   else
   {
@@ -271,9 +393,7 @@ void Timer::NanoSleep(std::uint64_t ns)
   // Round down to the next millisecond.
   usleep(static_cast<useconds_t>((ns / 1000000) * 1000));
 #else
-  const struct timespec ts = {0, static_cast<long>(ns)};
+  const struct timespec ts = {static_cast<long>(ns / 1000000000ULL), static_cast<long>(ns % 1000000000ULL)};
   nanosleep(&ts, nullptr);
 #endif
 }
-
-} // namespace Common

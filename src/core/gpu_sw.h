@@ -1,55 +1,71 @@
+// SPDX-FileCopyrightText: 2019-2024 Connor McLaughlin <stenzek@gmail.com>
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #pragma once
-#include "common/heap_array.h"
+
 #include "gpu.h"
-#include "gpu_sw_backend.h"
-#include "host_display.h"
-#include <array>
+#include "gpu_backend.h"
+
+#include "util/gpu_device.h"
+
+#include "common/heap_array.h"
+
 #include <memory>
-#include <vector>
 
-class HostDisplayTexture;
-
-class GPU_SW final : public GPU
+// TODO: Move to cpp
+// TODO: Rename to GPUSWBackend, preserved to avoid conflicts.
+class GPU_SW final : public GPUBackend
 {
 public:
-  GPU_SW();
+  GPU_SW(GPUPresenter& presenter);
   ~GPU_SW() override;
 
-  GPURenderer GetRendererType() const override;
+  bool Initialize(bool upload_vram, Error* error) override;
 
-  bool Initialize(HostDisplay* host_display) override;
-  bool DoState(StateWrapper& sw, HostDisplayTexture** host_texture, bool update_display) override;
-  void Reset(bool clear_vram) override;
-  void UpdateSettings() override;
+  void RestoreDeviceContext() override;
+  void FlushRender() override;
 
-protected:
+  u32 GetResolutionScale() const override;
+
   void ReadVRAM(u32 x, u32 y, u32 width, u32 height) override;
-  void FillVRAM(u32 x, u32 y, u32 width, u32 height, u32 color) override;
+  void FillVRAM(u32 x, u32 y, u32 width, u32 height, u32 color, bool interlaced_rendering, u8 active_line_lsb) override;
   void UpdateVRAM(u32 x, u32 y, u32 width, u32 height, const void* data, bool set_mask, bool check_mask) override;
-  void CopyVRAM(u32 src_x, u32 src_y, u32 dst_x, u32 dst_y, u32 width, u32 height) override;
+  void CopyVRAM(u32 src_x, u32 src_y, u32 dst_x, u32 dst_y, u32 width, u32 height, bool set_mask,
+                bool check_mask) override;
 
-  template<HostDisplayPixelFormat display_format>
-  void CopyOut15Bit(u32 src_x, u32 src_y, u32 width, u32 height, u32 field, bool interlaced, bool interleaved);
-  void CopyOut15Bit(HostDisplayPixelFormat display_format, u32 src_x, u32 src_y, u32 width, u32 height, u32 field,
-                    bool interlaced, bool interleaved);
+  void DrawPolygon(const GPUBackendDrawPolygonCommand* cmd) override;
+  void DrawPrecisePolygon(const GPUBackendDrawPrecisePolygonCommand* cmd) override;
+  void DrawLine(const GPUBackendDrawLineCommand* cmd) override;
+  void DrawPreciseLine(const GPUBackendDrawPreciseLineCommand* cmd) override;
+  void DrawSprite(const GPUBackendDrawRectangleCommand* cmd) override;
+  void DrawingAreaChanged() override;
+  void ClearCache() override;
+  void OnBufferSwapped() override;
 
-  template<HostDisplayPixelFormat display_format>
-  void CopyOut24Bit(u32 src_x, u32 src_y, u32 skip_x, u32 width, u32 height, u32 field, bool interlaced,
-                    bool interleaved);
-  void CopyOut24Bit(HostDisplayPixelFormat display_format, u32 src_x, u32 src_y, u32 skip_x, u32 width, u32 height,
-                    u32 field, bool interlaced, bool interleaved);
+  void UpdateDisplay(const GPUBackendUpdateDisplayCommand* cmd) override;
 
-  void ClearDisplay() override;
-  void UpdateDisplay() override;
+  void ClearVRAM() override;
 
-  void DispatchRenderCommand() override;
+  bool UpdateResolutionScale(Error* error) override;
 
-  void FillBackendCommandParameters(GPUBackendCommand* cmd) const;
-  void FillDrawCommand(GPUBackendDrawCommand* cmd, GPURenderCommand rc) const;
+  void LoadState(const GPUBackendLoadStateCommand* cmd) override;
 
-  HeapArray<u8, GPU_MAX_DISPLAY_WIDTH * GPU_MAX_DISPLAY_HEIGHT * sizeof(u32)> m_display_texture_buffer;
-  HostDisplayPixelFormat m_16bit_display_format = HostDisplayPixelFormat::RGB565;
-  HostDisplayPixelFormat m_24bit_display_format = HostDisplayPixelFormat::RGBA8;
+  bool AllocateMemorySaveState(System::MemorySaveState& mss, Error* error) override;
+  void DoMemoryState(StateWrapper& sw, System::MemorySaveState& mss) override;
 
-  GPU_SW_Backend m_backend;
+private:
+  static constexpr GPUTexture::Format FORMAT_FOR_24BIT = GPUTexture::Format::RGBA8; // RGBA8 always supported.
+
+  template<GPUTexture::Format display_format>
+  bool CopyOut15Bit(u32 src_x, u32 src_y, u32 width, u32 height, u32 line_skip);
+
+  bool CopyOut24Bit(u32 src_x, u32 src_y, u32 skip_x, u32 width, u32 height, u32 line_skip);
+
+  bool CopyOut(u32 src_x, u32 src_y, u32 skip_x, u32 width, u32 height, u32 line_skip, bool is_24bit);
+
+  GPUTexture* GetDisplayTexture(u32 width, u32 height, GPUTexture::Format format);
+
+  FixedHeapArray<u8, GPU_MAX_DISPLAY_WIDTH * GPU_MAX_DISPLAY_HEIGHT * sizeof(u32)> m_upload_buffer;
+  GPUTexture::Format m_16bit_display_format = GPUTexture::Format::Unknown;
+  std::unique_ptr<GPUTexture> m_upload_texture;
 };

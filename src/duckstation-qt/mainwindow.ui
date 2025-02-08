@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>700</height>
+    <height>655</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -17,23 +17,20 @@
    <string>DuckStation</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="resources/resources.qrc">
+   <iconset resource="resources/duckstation-qt.qrc">
     <normaloff>:/icons/duck.png</normaloff>:/icons/duck.png</iconset>
   </property>
-  <widget class="QStackedWidget" name="mainContainer">
-   <property name="currentIndex">
-    <number>0</number>
-   </property>
-   <widget class="QWidget" name="page"/>
-   <widget class="QWidget" name="page_2"/>
-  </widget>
+  <property name="unifiedTitleAndToolBarOnMac">
+   <bool>true</bool>
+  </property>
+  <widget class="QStackedWidget" name="mainContainer"/>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>754</width>
-     <height>22</height>
+     <width>800</width>
+     <height>33</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuSystem">
@@ -45,7 +42,7 @@
       <string>Change Disc</string>
      </property>
      <property name="icon">
-      <iconset theme="ChangeDisc"/>
+      <iconset theme="disc-line"/>
      </property>
      <actiongroup name="actionGroupChangeDiscSubImages"/>
      <addaction name="actionChangeDiscFromFile"/>
@@ -59,7 +56,7 @@
       <string>Cheats</string>
      </property>
      <property name="icon">
-       <iconset theme="Cheats"/>
+      <iconset theme="cheats-line"/>
      </property>
     </widget>
     <widget class="QMenu" name="menuLoadState">
@@ -67,7 +64,7 @@
       <string>Load State</string>
      </property>
      <property name="icon">
-      <iconset theme="LoadState"/>
+      <iconset theme="folder-open-line"/>
      </property>
     </widget>
     <widget class="QMenu" name="menuSaveState">
@@ -75,12 +72,13 @@
       <string>Save State</string>
      </property>
      <property name="icon">
-       <iconset theme="SaveState"/>
+      <iconset theme="save-3-line"/>
      </property>
     </widget>
     <addaction name="actionStartFile"/>
     <addaction name="actionStartDisc"/>
     <addaction name="actionStartBios"/>
+    <addaction name="actionStartFullscreenUI"/>
     <addaction name="actionResumeLastState"/>
     <addaction name="separator"/>
     <addaction name="actionPowerOff"/>
@@ -101,49 +99,39 @@
     <property name="title">
      <string>S&amp;ettings</string>
     </property>
-    <widget class="QMenu" name="menuSettingsTheme">
-     <property name="title">
-      <string>Theme</string>
-     </property>
-    </widget>
-    <widget class="QMenu" name="menuSettingsLanguage">
-     <property name="title">
-      <string>Language</string>
-     </property>
-    </widget>
+    <addaction name="actionViewGameProperties"/>
     <addaction name="separator"/>
-    <addaction name="actionGeneralSettings"/>
+    <addaction name="actionInterfaceSettings"/>
+    <addaction name="actionGameListSettings"/>
     <addaction name="actionBIOSSettings"/>
     <addaction name="actionConsoleSettings"/>
     <addaction name="actionEmulationSettings"/>
-    <addaction name="actionGameListSettings"/>
-    <addaction name="actionHotkeySettings"/>
-    <addaction name="actionControllerSettings"/>
     <addaction name="actionMemoryCardSettings"/>
-    <addaction name="actionDisplaySettings"/>
-    <addaction name="actionEnhancementSettings"/>
+    <addaction name="actionGraphicsSettings"/>
     <addaction name="actionPostProcessingSettings"/>
     <addaction name="actionAudioSettings"/>
     <addaction name="actionAchievementSettings"/>
+    <addaction name="actionFolderSettings"/>
     <addaction name="actionAdvancedSettings"/>
+    <addaction name="separator"/>
+    <addaction name="actionControllerSettings"/>
+    <addaction name="actionControllerProfiles"/>
+    <addaction name="actionHotkeySettings"/>
     <addaction name="separator"/>
     <addaction name="actionAddGameDirectory"/>
     <addaction name="actionScanForNewGames"/>
     <addaction name="actionRescanAllGames"/>
-    <addaction name="separator"/>
-    <addaction name="menuSettingsLanguage"/>
-    <addaction name="menuSettingsTheme"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>&amp;Help</string>
     </property>
     <addaction name="actionGitHubRepository"/>
-    <addaction name="actionIssueTracker"/>
     <addaction name="actionDiscordServer"/>
     <addaction name="separator"/>
     <addaction name="actionCheckForUpdates"/>
     <addaction name="separator"/>
+    <addaction name="actionViewThirdPartyNotices"/>
     <addaction name="actionAboutQt"/>
     <addaction name="actionAbout"/>
    </widget>
@@ -166,12 +154,27 @@
       <string>Switch Crop Mode</string>
      </property>
     </widget>
+    <widget class="QMenu" name="menuLogLevel">
+     <property name="title">
+      <string>Log Level</string>
+     </property>
+    </widget>
+    <widget class="QMenu" name="menuLogChannels">
+     <property name="title">
+      <string>Log Channels</string>
+     </property>
+    </widget>
     <addaction name="menuCPUExecutionMode"/>
     <addaction name="menuRenderer"/>
     <addaction name="menuCropMode"/>
-    <addaction name="actionDisableAllEnhancements"/>
-    <addaction name="actionDisableInterlacing"/>
-    <addaction name="actionForceNTSCTimings"/>
+    <addaction name="actionEnableSafeMode"/>
+    <addaction name="separator"/>
+    <addaction name="menuLogLevel"/>
+    <addaction name="menuLogChannels"/>
+    <addaction name="actionLogToSystemConsole"/>
+    <addaction name="actionLogToWindow"/>
+    <addaction name="actionLogToFile"/>
+    <addaction name="actionLogTimestamps"/>
     <addaction name="separator"/>
     <addaction name="actionCPUDebugger"/>
     <addaction name="separator"/>
@@ -181,7 +184,6 @@
     <addaction name="separator"/>
     <addaction name="actionDebugDumpCPUtoVRAMCopies"/>
     <addaction name="actionDebugDumpVRAMtoCPUCopies"/>
-    <addaction name="actionDumpAudio"/>
     <addaction name="separator"/>
     <addaction name="actionDebugShowVRAM"/>
     <addaction name="actionDebugShowGPUState"/>
@@ -207,11 +209,12 @@
     <addaction name="actionViewGameList"/>
     <addaction name="actionViewGameGrid"/>
     <addaction name="actionViewSystemDisplay"/>
-    <addaction name="actionViewGameProperties"/>
     <addaction name="separator"/>
     <addaction name="actionFullscreen"/>
     <addaction name="menuWindowSize"/>
     <addaction name="separator"/>
+    <addaction name="actionMergeDiscSets"/>
+    <addaction name="actionShowGameIcons"/>
     <addaction name="actionGridViewShowTitles"/>
     <addaction name="actionGridViewZoomIn"/>
     <addaction name="actionGridViewZoomOut"/>
@@ -221,10 +224,21 @@
     <property name="title">
      <string>&amp;Tools</string>
     </property>
-    <addaction name="actionMemory_Card_Editor"/>
-    <addaction name="actionCheatManager"/>
-    <addaction name="separator"/>
     <addaction name="actionOpenDataDirectory"/>
+    <addaction name="separator"/>
+    <addaction name="actionMemoryCardEditor"/>
+    <addaction name="actionCoverDownloader"/>
+    <addaction name="actionControllerTest"/>
+    <addaction name="separator"/>
+    <addaction name="actionMemoryScanner"/>
+    <addaction name="actionISOBrowser"/>
+    <addaction name="separator"/>
+    <addaction name="actionFreeCamera"/>
+    <addaction name="actionMediaCapture"/>
+    <addaction name="actionCaptureGPUFrame"/>
+    <addaction name="separator"/>
+    <addaction name="actionOpenTextureDirectory"/>
+    <addaction name="actionReloadTextureReplacements"/>
    </widget>
    <addaction name="menuSystem"/>
    <addaction name="menuSettings"/>
@@ -234,8 +248,8 @@
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QToolBar" name="toolBar">
-   <property name="windowTitle">
-    <string>toolBar</string>
+   <property name="contextMenuPolicy">
+    <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
    </property>
    <property name="iconSize">
     <size>
@@ -244,7 +258,10 @@
     </size>
    </property>
    <property name="toolButtonStyle">
-    <enum>Qt::ToolButtonTextUnderIcon</enum>
+    <enum>Qt::ToolButtonStyle::ToolButtonTextUnderIcon</enum>
+   </property>
+   <property name="floatable">
+    <bool>false</bool>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
@@ -252,26 +269,11 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionStartFile"/>
-   <addaction name="actionStartBios"/>
-   <addaction name="separator"/>
-   <addaction name="actionResumeLastState"/>
-   <addaction name="actionReset"/>
-   <addaction name="actionPause"/>
-   <addaction name="actionChangeDisc"/>
-   <addaction name="actionCheats"/>
-   <addaction name="actionScreenshot"/>
-   <addaction name="separator"/>
-   <addaction name="actionLoadState"/>
-   <addaction name="actionSaveState"/>
-   <addaction name="separator"/>
-   <addaction name="actionFullscreen"/>
-   <addaction name="actionSettings"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionStartFile">
    <property name="icon">
-    <iconset theme="StartfileSettings"/>
+    <iconset theme="file-line"/>
    </property>
    <property name="text">
     <string>Start &amp;File...</string>
@@ -279,7 +281,7 @@
   </action>
   <action name="actionStartDisc">
    <property name="icon">
-     <iconset theme="StartdiscSettings"/>
+    <iconset theme="disc-line"/>
    </property>
    <property name="text">
     <string>Start &amp;Disc...</string>
@@ -287,7 +289,7 @@
   </action>
   <action name="actionStartBios">
    <property name="icon">
-     <iconset theme="BIOSSettings"/>
+    <iconset theme="chip-line"/>
    </property>
    <property name="text">
     <string>Start &amp;BIOS</string>
@@ -295,7 +297,7 @@
   </action>
   <action name="actionScanForNewGames">
    <property name="icon">
-     <iconset theme="ScanForGames"/>
+    <iconset theme="file-search-line"/>
    </property>
    <property name="text">
     <string>&amp;Scan For New Games</string>
@@ -303,7 +305,7 @@
   </action>
   <action name="actionRescanAllGames">
    <property name="icon">
-     <iconset theme="RescanAllGames"/>
+    <iconset theme="refresh-line"/>
    </property>
    <property name="text">
     <string>&amp;Rescan All Games</string>
@@ -311,7 +313,7 @@
   </action>
   <action name="actionPowerOff">
    <property name="icon">
-     <iconset theme="PowerOff"/>
+    <iconset theme="shut-down-line"/>
    </property>
    <property name="text">
     <string>Power &amp;Off</string>
@@ -319,7 +321,7 @@
   </action>
   <action name="actionReset">
    <property name="icon">
-     <iconset theme="Reset"/>
+    <iconset theme="restart-line"/>
    </property>
    <property name="text">
     <string>&amp;Reset</string>
@@ -330,7 +332,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset theme="Pause"/>
+    <iconset theme="pause-line"/>
    </property>
    <property name="text">
     <string>&amp;Pause</string>
@@ -338,7 +340,7 @@
   </action>
   <action name="actionLoadState">
    <property name="icon">
-    <iconset theme="LoadState"/>
+    <iconset theme="folder-open-line"/>
    </property>
    <property name="text">
     <string>&amp;Load State</string>
@@ -346,7 +348,7 @@
   </action>
   <action name="actionSaveState">
    <property name="icon">
-    <iconset theme="SaveState"/>
+    <iconset theme="save-3-line"/>
    </property>
    <property name="text">
     <string>&amp;Save State</string>
@@ -354,7 +356,7 @@
   </action>
   <action name="actionExit">
    <property name="icon">
-    <iconset theme="Exit"/>
+    <iconset theme="door-open-line"/>
    </property>
    <property name="text">
     <string>E&amp;xit</string>
@@ -362,71 +364,63 @@
   </action>
   <action name="actionBIOSSettings">
    <property name="icon">
-    <iconset theme="BIOSSettings"/>
+    <iconset theme="chip-line"/>
    </property>
    <property name="text">
-    <string>B&amp;IOS Settings...</string>
+    <string>B&amp;IOS</string>
    </property>
   </action>
   <action name="actionConsoleSettings">
    <property name="icon">
-    <iconset theme="ConsoleSettings"/>
+    <iconset theme="chip-2-line"/>
    </property>
    <property name="text">
-    <string>C&amp;onsole Settings...</string>
+    <string>C&amp;onsole</string>
    </property>
   </action>
   <action name="actionEmulationSettings">
    <property name="icon">
-    <iconset theme="EmulationSettings"/>
+    <iconset theme="emulation-line"/>
    </property>
    <property name="text">
-    <string>E&amp;mulation Settings...</string>
+    <string>E&amp;mulation</string>
    </property>
   </action>
   <action name="actionControllerSettings">
    <property name="icon">
-    <iconset theme="ControllerSettings"/>
+    <iconset theme="controller-digital-line"/>
    </property>
    <property name="text">
-    <string>&amp;Controller Settings...</string>
+    <string>&amp;Controllers</string>
    </property>
   </action>
   <action name="actionHotkeySettings">
    <property name="icon">
-    <iconset theme="HotkeySettings"/>
+    <iconset theme="keyboard-line"/>
    </property>
    <property name="text">
-    <string>&amp;Hotkey Settings...</string>
+    <string>&amp;Hotkeys</string>
    </property>
   </action>
-  <action name="actionDisplaySettings">
+  <action name="actionGraphicsSettings">
    <property name="icon">
-    <iconset theme="DisplaySettings"/>
+    <iconset theme="image-fill"/>
    </property>
    <property name="text">
-    <string>&amp;Display Settings...</string>
-   </property>
-  </action>
-  <action name="actionEnhancementSettings">
-   <property name="icon">
-    <iconset theme="EnhancementSettings"/>
-   </property>
-   <property name="text">
-    <string>&amp;Enhancement Settings...</string>
+    <string>&amp;Graphics</string>
    </property>
   </action>
   <action name="actionPostProcessingSettings">
    <property name="icon">
-    <iconset theme="PostprocessingSettings"/>
+    <iconset theme="sun-fill"/>
    </property>
    <property name="text">
-    <string>&amp;Post-Processing Settings...</string>
+    <string>&amp;Post-Processing</string>
    </property>
   </action>
   <action name="actionFullscreen">
    <property name="icon">
-    <iconset theme="Fullscreen"/>
+    <iconset theme="fullscreen-line"/>
    </property>
    <property name="text">
     <string>Fullscreen</string>
@@ -439,25 +433,16 @@
   </action>
   <action name="actionGitHubRepository">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/duckstation-qt.qrc">
      <normaloff>:/icons/github.png</normaloff>:/icons/github.png</iconset>
    </property>
    <property name="text">
     <string>&amp;GitHub Repository...</string>
    </property>
   </action>
-  <action name="actionIssueTracker">
-   <property name="icon">
-    <iconset resource="resources/resources.qrc">
-     <normaloff>:/icons/IssueTracker.png</normaloff>:/icons/IssueTracker.png</iconset>
-   </property>
-   <property name="text">
-    <string>&amp;Issue Tracker...</string>
-   </property>
-  </action>
   <action name="actionDiscordServer">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/duckstation-qt.qrc">
      <normaloff>:/icons/discord.png</normaloff>:/icons/discord.png</iconset>
    </property>
    <property name="text">
@@ -466,16 +451,20 @@
   </action>
   <action name="actionCheckForUpdates">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
-     <normaloff>:/icons/update.png</normaloff>:/icons/update.png</iconset>
+    <iconset theme="download-2-line"/>
    </property>
    <property name="text">
     <string>Check for &amp;Updates...</string>
    </property>
   </action>
+  <action name="actionViewThirdPartyNotices">
+   <property name="text">
+    <string>View Third-Party Notices...</string>
+   </property>
+  </action>
   <action name="actionAboutQt">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/duckstation-qt.qrc">
      <normaloff>:/icons/QT.png</normaloff>:/icons/QT.png</iconset>
    </property>
    <property name="text">
@@ -484,7 +473,7 @@
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/duckstation-qt.qrc">
      <normaloff>:/icons/duck_64.png</normaloff>:/icons/duck_64.png</iconset>
    </property>
    <property name="text">
@@ -493,63 +482,71 @@
   </action>
   <action name="actionChangeDisc">
    <property name="icon">
-    <iconset theme="ChangeDisc"/>
+    <iconset theme="disc-line"/>
    </property>
    <property name="text">
     <string>Change Disc...</string>
    </property>
   </action>
-  <action name="actionCheats">
+  <action name="actionCheatsToolbar">
    <property name="icon">
-    <iconset theme="Cheats"/>
+    <iconset theme="cheats-line"/>
    </property>
    <property name="text">
-    <string>Cheats...</string>
+    <string>Cheats</string>
    </property>
   </action>
   <action name="actionAudioSettings">
    <property name="icon">
-    <iconset theme="AudioSettings"/>
+    <iconset theme="volume-up-line"/>
    </property>
    <property name="text">
-    <string>Audio Settings...</string>
+    <string>Audio</string>
    </property>
   </action>
   <action name="actionAchievementSettings">
    <property name="icon">
-    <iconset theme="AchievementsSettings"/>
+    <iconset theme="trophy-line"/>
    </property>
    <property name="text">
-    <string>Achievement Settings...</string>
+    <string>Achievements</string>
+   </property>
+  </action>
+  <action name="actionFolderSettings">
+   <property name="icon">
+    <iconset theme="folder-open-line"/>
+   </property>
+   <property name="text">
+    <string>Folders</string>
    </property>
   </action>
   <action name="actionGameListSettings">
    <property name="icon">
-    <iconset theme="GamelistSettings"/>
+    <iconset theme="folder-open-line"/>
    </property>
    <property name="text">
-    <string>Game List Settings...</string>
+    <string>Game List</string>
    </property>
   </action>
-  <action name="actionGeneralSettings">
+  <action name="actionInterfaceSettings">
    <property name="icon">
-    <iconset theme="GeneralSettings"/>
+    <iconset theme="settings-3-line"/>
    </property>
    <property name="text">
-    <string>General Settings...</string>
+    <string>&amp;Interface</string>
    </property>
   </action>
   <action name="actionAdvancedSettings">
    <property name="icon">
-    <iconset theme="AdvancedSettings"/>
+    <iconset theme="alert-line"/>
    </property>
    <property name="text">
-    <string>Advanced Settings...</string>
+    <string>Advanced</string>
    </property>
   </action>
   <action name="actionAddGameDirectory">
    <property name="icon">
-    <iconset theme="AddGameDirectory"/>
+    <iconset theme="folder-add-line"/>
    </property>
    <property name="text">
     <string>Add Game Directory...</string>
@@ -557,10 +554,24 @@
   </action>
   <action name="actionSettings">
    <property name="icon">
-    <iconset theme="GeneralSettings"/>
+    <iconset theme="settings-3-line"/>
    </property>
    <property name="text">
-    <string>&amp;Settings...</string>
+    <string>&amp;Settings</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::PreferencesRole</enum>
+   </property>
+  </action>
+  <action name="actionSettings2">
+   <property name="icon">
+    <iconset theme="settings-3-line"/>
+   </property>
+   <property name="text">
+    <string>&amp;Settings</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::PreferencesRole</enum>
    </property>
   </action>
   <action name="actionChangeDiscFromFile">
@@ -617,36 +628,12 @@
     <string>Dump VRAM to CPU Copies</string>
    </property>
   </action>
-  <action name="actionDisableAllEnhancements">
+  <action name="actionEnableSafeMode">
    <property name="checkable">
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Disable All Enhancements</string>
-   </property>
-  </action>
-  <action name="actionDisableInterlacing">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Disable Interlacing</string>
-   </property>
-  </action>
-  <action name="actionForceNTSCTimings">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Force NTSC Timings</string>
-   </property>
-  </action>
-  <action name="actionDumpAudio">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Dump Audio</string>
+    <string>Enable Safe Mode</string>
    </property>
   </action>
   <action name="actionDumpRAM">
@@ -714,7 +701,7 @@
   </action>
   <action name="actionScreenshot">
    <property name="icon">
-    <iconset theme="Screenshot"/>
+    <iconset theme="screenshot-2-line"/>
    </property>
    <property name="text">
     <string>&amp;Screenshot</string>
@@ -722,15 +709,15 @@
   </action>
   <action name="actionMemoryCardSettings">
    <property name="icon">
-    <iconset theme="MemorycardSettings"/>
+    <iconset theme="memcard-line"/>
    </property>
    <property name="text">
-    <string>&amp;Memory Card Settings...</string>
+    <string>&amp;Memory Cards</string>
    </property>
   </action>
   <action name="actionResumeLastState">
    <property name="icon">
-    <iconset theme="Resume"/>
+    <iconset theme="play-circle-line"/>
    </property>
    <property name="text">
     <string>Resume</string>
@@ -774,7 +761,7 @@
   </action>
   <action name="actionViewGameList">
    <property name="icon">
-    <iconset theme="GameList"/>
+    <iconset theme="list-check"/>
    </property>
    <property name="text">
     <string>Game &amp;List</string>
@@ -784,6 +771,9 @@
    <property name="enabled">
     <bool>false</bool>
    </property>
+   <property name="icon">
+    <iconset theme="tv-2-line"/>
+   </property>
    <property name="text">
     <string>System &amp;Display</string>
    </property>
@@ -792,18 +782,16 @@
    <property name="enabled">
     <bool>false</bool>
    </property>
+   <property name="icon">
+    <iconset theme="file-settings-line"/>
+   </property>
    <property name="text">
     <string>Game &amp;Properties</string>
    </property>
   </action>
-  <action name="actionMemory_Card_Editor">
+  <action name="actionMemoryCardEditor">
    <property name="text">
     <string>Memory &amp;Card Editor</string>
-   </property>
-  </action>
-  <action name="actionCheatManager">
-   <property name="text">
-    <string>C&amp;heat Manager</string>
    </property>
   </action>
   <action name="actionCPUDebugger">
@@ -813,10 +801,21 @@
   </action>
   <action name="actionViewGameGrid">
    <property name="icon">
-    <iconset theme="GameGrid"/>
+    <iconset theme="function-line"/>
    </property>
    <property name="text">
     <string>Game &amp;Grid</string>
+   </property>
+  </action>
+  <action name="actionMergeDiscSets">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Merge Multi-Disc Games</string>
    </property>
   </action>
   <action name="actionGridViewShowTitles">
@@ -834,16 +833,10 @@
    <property name="text">
     <string>Zoom &amp;In (Grid View)</string>
    </property>
-   <property name="shortcut">
-    <string>Ctrl++</string>
-   </property>
   </action>
   <action name="actionGridViewZoomOut">
    <property name="text">
     <string>Zoom &amp;Out (Grid View)</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+-</string>
    </property>
   </action>
   <action name="actionGridViewRefreshCovers">
@@ -863,15 +856,133 @@
   </action>
   <action name="actionPowerOffWithoutSaving">
    <property name="icon">
-    <iconset theme="PoweroffWsaving"/>
+    <iconset theme="close-line"/>
    </property>
    <property name="text">
     <string>Power Off &amp;Without Saving</string>
    </property>
   </action>
+  <action name="actionStartFullscreenUI">
+   <property name="icon">
+    <iconset theme="tv-2-line"/>
+   </property>
+   <property name="text">
+    <string>Start Big Picture Mode</string>
+   </property>
+  </action>
+  <action name="actionStartFullscreenUI2">
+   <property name="icon">
+    <iconset theme="tv-2-line"/>
+   </property>
+   <property name="text">
+    <string>Big Picture</string>
+   </property>
+  </action>
+  <action name="actionCoverDownloader">
+   <property name="text">
+    <string>Cover Downloader</string>
+   </property>
+  </action>
+  <action name="actionMemoryScanner">
+   <property name="text">
+    <string>Memory &amp;Scanner</string>
+   </property>
+  </action>
+  <action name="actionShowGameIcons">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Game Icons (List View)</string>
+   </property>
+  </action>
+  <action name="actionMediaCapture">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Media Ca&amp;pture</string>
+   </property>
+  </action>
+  <action name="actionOpenTextureDirectory">
+   <property name="text">
+    <string>Open Texture Directory...</string>
+   </property>
+  </action>
+  <action name="actionReloadTextureReplacements">
+   <property name="text">
+    <string>Reload Texture Replacements</string>
+   </property>
+  </action>
+  <action name="actionCaptureGPUFrame">
+   <property name="text">
+    <string>Capture GPU Frame</string>
+   </property>
+  </action>
+  <action name="actionLogTimestamps">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Log Timestamps</string>
+   </property>
+  </action>
+  <action name="actionLogToSystemConsole">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Log To System Console</string>
+   </property>
+  </action>
+  <action name="actionLogToWindow">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Log To Window</string>
+   </property>
+  </action>
+  <action name="actionLogToFile">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Log To File</string>
+   </property>
+  </action>
+  <action name="actionISOBrowser">
+   <property name="text">
+    <string>ISO Browser</string>
+   </property>
+  </action>
+  <action name="actionFreeCamera">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Free Camera</string>
+   </property>
+  </action>
+  <action name="actionControllerTest">
+   <property name="text">
+    <string>Controller Test</string>
+   </property>
+  </action>
+  <action name="actionControllerProfiles">
+   <property name="icon">
+    <iconset theme="controllers-line"/>
+   </property>
+   <property name="text">
+    <string>Controller Presets</string>
+   </property>
+  </action>
  </widget>
  <resources>
-  <include location="resources/resources.qrc"/>
+  <include location="resources/duckstation-qt.qrc"/>
  </resources>
  <connections/>
 </ui>

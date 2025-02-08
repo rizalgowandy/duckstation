@@ -9,6 +9,7 @@
 #define CUBEB_RING_ARRAY_H
 
 #include "cubeb_utils.h"
+#include <CoreAudio/CoreAudioTypes.h>
 
 /** Ring array of pointers is used to hold buffers. In case that
     asynchronous producer/consumer callbacks do not arrive in a
@@ -16,17 +17,16 @@
     them in the correct order. */
 
 typedef struct {
-  AudioBuffer * buffer_array;   /**< Array that hold pointers of the allocated space for the buffers. */
-  unsigned int tail;            /**< Index of the last element (first to deliver). */
-  unsigned int count;           /**< Number of elements in the array. */
-  unsigned int capacity;        /**< Total length of the array. */
+  AudioBuffer * buffer_array; /**< Array that hold pointers of the allocated
+                                 space for the buffers. */
+  unsigned int tail;     /**< Index of the last element (first to deliver). */
+  unsigned int count;    /**< Number of elements in the array. */
+  unsigned int capacity; /**< Total length of the array. */
 } ring_array;
 
 static int
-single_audiobuffer_init(AudioBuffer * buffer,
-                        uint32_t bytesPerFrame,
-                        uint32_t channelsPerFrame,
-                        uint32_t frames)
+single_audiobuffer_init(AudioBuffer * buffer, uint32_t bytesPerFrame,
+                        uint32_t channelsPerFrame, uint32_t frames)
 {
   assert(buffer);
   assert(bytesPerFrame > 0 && channelsPerFrame && frames > 0);
@@ -36,7 +36,7 @@ single_audiobuffer_init(AudioBuffer * buffer,
   if (buffer->mData == NULL) {
     return CUBEB_ERROR;
   }
-  PodZero(static_cast<char*>(buffer->mData), size);
+  PodZero(static_cast<char *>(buffer->mData), size);
 
   buffer->mNumberChannels = channelsPerFrame;
   buffer->mDataByteSize = size;
@@ -47,16 +47,13 @@ single_audiobuffer_init(AudioBuffer * buffer,
 /** Initialize the ring array.
     @param ra The ring_array pointer of allocated structure.
     @retval 0 on success. */
-int
-ring_array_init(ring_array * ra,
-                uint32_t capacity,
-                uint32_t bytesPerFrame,
-                uint32_t channelsPerFrame,
-                uint32_t framesPerBuffer)
+static int
+ring_array_init(ring_array * ra, uint32_t capacity, uint32_t bytesPerFrame,
+                uint32_t channelsPerFrame, uint32_t framesPerBuffer)
 {
   assert(ra);
-  if (capacity == 0 || bytesPerFrame == 0 ||
-      channelsPerFrame == 0 || framesPerBuffer == 0) {
+  if (capacity == 0 || bytesPerFrame == 0 || channelsPerFrame == 0 ||
+      framesPerBuffer == 0) {
     return CUBEB_ERROR_INVALID_PARAMETER;
   }
   ra->capacity = capacity;
@@ -70,8 +67,7 @@ ring_array_init(ring_array * ra,
   }
 
   for (unsigned int i = 0; i < ra->capacity; ++i) {
-    if (single_audiobuffer_init(&ra->buffer_array[i],
-                                bytesPerFrame,
+    if (single_audiobuffer_init(&ra->buffer_array[i], bytesPerFrame,
                                 channelsPerFrame,
                                 framesPerBuffer) != CUBEB_OK) {
       return CUBEB_ERROR;
@@ -83,11 +79,11 @@ ring_array_init(ring_array * ra,
 
 /** Destroy the ring array.
     @param ra The ring_array pointer.*/
-void
+static void
 ring_array_destroy(ring_array * ra)
 {
   assert(ra);
-  if (ra->buffer_array == NULL){
+  if (ra->buffer_array == NULL) {
     return;
   }
   for (unsigned int i = 0; i < ra->capacity; ++i) {
@@ -95,13 +91,14 @@ ring_array_destroy(ring_array * ra)
       operator delete(ra->buffer_array[i].mData);
     }
   }
-  delete [] ra->buffer_array;
+  delete[] ra->buffer_array;
 }
 
 /** Get the allocated buffer to be stored with fresh data.
     @param ra The ring_array pointer.
-    @retval Pointer of the allocated space to be stored with fresh data or NULL if full. */
-AudioBuffer *
+    @retval Pointer of the allocated space to be stored with fresh data or NULL
+   if full. */
+static AudioBuffer *
 ring_array_get_free_buffer(ring_array * ra)
 {
   assert(ra && ra->buffer_array);
@@ -122,7 +119,7 @@ ring_array_get_free_buffer(ring_array * ra)
 /** Get the next available buffer with data.
     @param ra The ring_array pointer.
     @retval Pointer of the next in order data buffer or NULL if empty. */
-AudioBuffer *
+static AudioBuffer *
 ring_array_get_data_buffer(ring_array * ra)
 {
   assert(ra && ra->buffer_array);
@@ -142,18 +139,4 @@ ring_array_get_data_buffer(ring_array * ra)
   return ret;
 }
 
-/** When array is empty get the first allocated buffer in the array.
-    @param ra The ring_array pointer.
-    @retval If arrays is empty, pointer of the allocated space else NULL. */
-AudioBuffer *
-ring_array_get_dummy_buffer(ring_array * ra)
-{
-  assert(ra && ra->buffer_array);
-  assert(ra->capacity > 0);
-  if (ra->count > 0) {
-    return NULL;
-  }
-  return &ra->buffer_array[0];
-}
-
-#endif //CUBEB_RING_ARRAY_H
+#endif // CUBEB_RING_ARRAY_H

@@ -1,15 +1,20 @@
+// SPDX-FileCopyrightText: 2019-2025 Connor McLaughlin <stenzek@gmail.com>
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #pragma once
+#include "ui_emptygamelistwidget.h"
+#include "ui_gamelistwidget.h"
+
+#include "core/game_list.h"
+
 #include <QtWidgets/QListView>
-#include <QtWidgets/QStackedWidget>
 #include <QtWidgets/QTableView>
 
-class GameList;
-struct GameListEntry;
+Q_DECLARE_METATYPE(const GameList::Entry*);
 
 class GameListModel;
 class GameListSortModel;
-
-class QtHostInterface;
+class GameListRefreshThread;
 
 class GameListGridListView : public QListView
 {
@@ -26,7 +31,7 @@ protected:
   void wheelEvent(QWheelEvent* e);
 };
 
-class GameListWidget : public QStackedWidget
+class GameListWidget : public QWidget
 {
   Q_OBJECT
 
@@ -34,22 +39,40 @@ public:
   GameListWidget(QWidget* parent = nullptr);
   ~GameListWidget();
 
-  void initialize(QtHostInterface* host_interface);
+  ALWAYS_INLINE GameListModel* getModel() const { return m_model; }
+
+  void initialize();
+  void resizeTableViewColumnsToFit();
+  void setTableViewColumnHidden(int column, bool hidden);
+
+  void refresh(bool invalidate_cache);
+  void refreshModel();
+  void cancelRefresh();
+  void reloadThemeSpecificImages();
 
   bool isShowingGameList() const;
   bool isShowingGameGrid() const;
+  bool isShowingGridCoverTitles() const;
+  bool isMergingDiscSets() const;
+  bool isShowingGameIcons() const;
 
-  bool getShowGridCoverTitles() const;
-
-  const GameListEntry* getSelectedEntry() const;
+  const GameList::Entry* getSelectedEntry() const;
 
 Q_SIGNALS:
-  void entrySelected(const GameListEntry* entry);
-  void entryDoubleClicked(const GameListEntry* entry);
-  void entryContextMenuRequested(const QPoint& point, const GameListEntry* entry);
+  void refreshProgress(const QString& status, int current, int total);
+  void refreshComplete();
+
+  void selectionChanged();
+  void entryActivated();
+  void entryContextMenuRequested(const QPoint& point);
+
+  void addGameDirectoryRequested();
+  void layoutChanged();
 
 private Q_SLOTS:
-  void onGameListRefreshed();
+  void onRefreshProgress(const QString& status, int current, int total, float time);
+  void onRefreshComplete();
+
   void onSelectionModelCurrentChanged(const QModelIndex& current, const QModelIndex& previous);
   void onTableViewItemActivated(const QModelIndex& index);
   void onTableViewContextMenuRequested(const QPoint& point);
@@ -57,33 +80,42 @@ private Q_SLOTS:
   void onTableViewHeaderSortIndicatorChanged(int, Qt::SortOrder);
   void onListViewItemActivated(const QModelIndex& index);
   void onListViewContextMenuRequested(const QPoint& point);
+  void onCoverScaleChanged();
+  void onSearchReturnPressed();
 
 public Q_SLOTS:
   void showGameList();
   void showGameGrid();
   void setShowCoverTitles(bool enabled);
+  void setMergeDiscSets(bool enabled);
+  void setShowGameIcons(bool enabled);
   void gridZoomIn();
   void gridZoomOut();
+  void gridIntScale(int int_scale);
   void refreshGridCovers();
+  void focusSearchWidget();
 
 protected:
   void resizeEvent(QResizeEvent* event);
 
 private:
-  void resizeTableViewColumnsToFit();
   void loadTableViewColumnVisibilitySettings();
   void saveTableViewColumnVisibilitySettings();
   void saveTableViewColumnVisibilitySettings(int column);
   void loadTableViewColumnSortSettings();
   void saveTableViewColumnSortSettings();
   void listZoom(float delta);
-  void updateListFont();
+  void updateToolbar();
 
-  QtHostInterface* m_host_interface = nullptr;
-  GameList* m_game_list = nullptr;
+  Ui::GameListWidget m_ui;
 
   GameListModel* m_model = nullptr;
   GameListSortModel* m_sort_model = nullptr;
   QTableView* m_table_view = nullptr;
   GameListGridListView* m_list_view = nullptr;
+
+  QWidget* m_empty_widget = nullptr;
+  Ui::EmptyGameListWidget m_empty_ui;
+
+  GameListRefreshThread* m_refresh_thread = nullptr;
 };
