@@ -1,37 +1,91 @@
+// SPDX-FileCopyrightText: 2019-2024 Connor McLaughlin <stenzek@gmail.com>
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #pragma once
+
 #include "common/progress_callback.h"
 #include "common/timer.h"
-#include <QtWidgets/QProgressDialog>
 
-class QtProgressCallback final : public QObject, public BaseProgressCallback
+#include <QtCore/QSemaphore>
+#include <QtCore/QThread>
+#include <QtWidgets/QProgressDialog>
+#include <atomic>
+
+class QtModalProgressCallback final : public QObject, public ProgressCallback
 {
   Q_OBJECT
 
 public:
-  QtProgressCallback(QWidget* parent_widget, float show_delay = 0.0f);
-  ~QtProgressCallback();
+  QtModalProgressCallback(QWidget* parent_widget, float show_delay = 0.0f);
+  ~QtModalProgressCallback();
+
+  QProgressDialog& GetDialog() { return m_dialog; }
+
+  void SetCancellable(bool cancellable) override;
+  void SetTitle(const std::string_view title) override;
+  void SetStatusText(const std::string_view text) override;
+  void SetProgressRange(u32 range) override;
+  void SetProgressValue(u32 value) override;
+
+  void ModalError(const std::string_view message) override;
+  bool ModalConfirmation(const std::string_view message) override;
+  void ModalInformation(const std::string_view message) override;
+
+  void MakeVisible();
+
+private Q_SLOTS:
+  void dialogCancelled();
+
+private:
+  static constexpr int MINIMUM_WIDTH = 500;
+  static constexpr int MINIMUM_HEIGHT_WITHOUT_CANCEL = 70;
+  static constexpr int MINIMUM_HEIGHT_WITH_CANCEL = 100;
+
+  void checkForDelayedShow();
+
+  QProgressDialog m_dialog;
+  Timer m_show_timer;
+  float m_show_delay;
+};
+
+class QtAsyncProgressThread : public QThread, public ProgressCallback
+{
+  Q_OBJECT
+
+public:
+  QtAsyncProgressThread(QWidget* parent);
+  ~QtAsyncProgressThread();
 
   bool IsCancelled() const override;
 
   void SetCancellable(bool cancellable) override;
-  void SetTitle(const char* title) override;
-  void SetStatusText(const char* text) override;
+  void SetTitle(const std::string_view title) override;
+  void SetStatusText(const std::string_view text) override;
   void SetProgressRange(u32 range) override;
   void SetProgressValue(u32 value) override;
 
-  void DisplayError(const char* message) override;
-  void DisplayWarning(const char* message) override;
-  void DisplayInformation(const char* message) override;
-  void DisplayDebugMessage(const char* message) override;
+  void ModalError(const std::string_view message) override;
+  bool ModalConfirmation(const std::string_view message) override;
+  void ModalInformation(const std::string_view message) override;
 
-  void ModalError(const char* message) override;
-  bool ModalConfirmation(const char* message) override;
-  void ModalInformation(const char* message) override;
+Q_SIGNALS:
+  void titleUpdated(const QString& title);
+  void statusUpdated(const QString& status);
+  void progressUpdated(int value, int range);
+  void threadStarting();
+  void threadFinished();
+
+public Q_SLOTS:
+  void start();
+  void join();
+
+protected:
+  virtual void runAsync() = 0;
+  void run() final;
 
 private:
-  void checkForDelayedShow();
+  QWidget* parentWidget() const;
 
-  QProgressDialog m_dialog;
-  Common::Timer m_show_timer;
-  float m_show_delay;
+  QSemaphore m_start_semaphore;
+  QThread* m_starting_thread = nullptr;
 };

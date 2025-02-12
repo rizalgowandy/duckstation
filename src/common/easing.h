@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2019-2024 Connor McLaughlin <stenzek@gmail.com>
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #pragma once
 #include "types.h"
 #include <cmath>
@@ -123,13 +126,13 @@ ALWAYS_INLINE_RELEASE static T InOutQuint(T t)
 template<typename T>
 ALWAYS_INLINE_RELEASE static T InExpo(T t)
 {
-  return (std::pow(2, 8 * t) - 1) / 255;
+  return (std::pow(static_cast<T>(2), static_cast<T>(8) * t) - static_cast<T>(1)) / static_cast<T>(255);
 }
 
 template<typename T>
 ALWAYS_INLINE_RELEASE static T OutExpo(T t)
 {
-  return 1 - std::pow(2, -8 * t);
+  return static_cast<T>(1) - std::pow(static_cast<T>(2), static_cast<T>(-8) * t);
 }
 
 template<typename T>

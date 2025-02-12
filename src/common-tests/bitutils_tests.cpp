@@ -1,5 +1,10 @@
+// SPDX-FileCopyrightText: 2019-2024 Connor McLaughlin <stenzek@gmail.com>
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #include "common/bitutils.h"
+
 #include "gtest/gtest.h"
+
 #include <type_traits>
 
 template<typename T>
